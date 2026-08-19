@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <form method="post"><button name='logout' type="submit">Wyloguj się</button></form>
+
+    {{ data['message'] }}
+
+    <form method="post">
+        <input type="text" placeholder="Imię i Nazwisko pracownika" name="name_employee">
+        <button type="submit" name="add_employee">Dodaj pracownika</button>
+    </form>
+</body>
+</html>
