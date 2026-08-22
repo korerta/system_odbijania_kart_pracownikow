@@ -6,5 +6,90 @@
 </head>
 <body>
     <a href="{{ url_for('login') }}">Panel Administratora</a>
+
+    <button id="scanBtn">Rozpocznij skanowanie NFC</button>
+    <p id="status">Status: Oczekiwanie na uruchomienie...</p>
+    <div id="output"></div>
+
+    <script>
+        const scanBtn = document.getElementById('scanBtn');
+        const statusEl = document.getElementById('status');
+        const outputEl = document.getElementById('output');
+
+        scanBtn.addEventListener('click', async () => {
+            // 1. Sprawdzenie, czy przeglądarka wspiera Web NFC
+            if (!('NDEFReader' in window)) {
+                statusEl.innerText = "Błąd: Twoja przeglądarka nie obsługuje Web NFC (użyj Chrome na Androidzie).";
+                return;
+            }
+
+            try {
+                // 2. Inicjalizacja czytnika i rozpoczęcie nasłuchiwania
+                const ndef = new NDEFReader();
+                await ndef.scan();
+
+                statusEl.innerText = "Status: Skaner aktywny. Przyłóż tag NFC do pleców telefonu...";
+                scanBtn.disabled = true;
+
+                // 3. Obsługa zdarzenia wykrycia i odczytania taga
+                ndef.addEventListener("reading", async ({ message, serialNumber }) => {
+                    statusEl.innerText = "Status: Odczytano tag! Wysyłanie do serwera...";
+
+                    // Dekodowanie zawartości tekstowej z rekordów NDEF
+                    const textDecoder = new TextDecoder();
+                    const recordsData = [];
+
+                    for (const record of message.records) {
+                        if (record.recordType === "text") {
+                            recordsData.push({
+                                type: "text",
+                                data: textDecoder.decode(record.data)
+                            });
+                        } else {
+                            recordsData.push({
+                                type: record.recordType,
+                                data: "Typ inny niż czysty tekst"
+                            });
+                        }
+                    }
+
+                    // Przygotowanie paczki danych do wysłania
+                    const payload = {
+                        serialNumber: serialNumber,
+                        records: recordsData
+                    };
+
+                    outputEl.innerHTML = `<strong>UID taga:</strong> ${serialNumber}<br>` +
+                                         `<strong>Odczytane rekordy:</strong> ${JSON.stringify(recordsData)}`;
+
+                    // 4. Wysłanie danych do Flaska na localhost
+                    try {
+                        const response = await fetch('/api/nfc', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json();
+                        console.log("Odpowiedź z Flaska:", result);
+                        statusEl.innerText = "Status: Dane zapisane na serwerze pomyślnie!";
+                    } catch (err) {
+                        console.error("Błąd podczas wysyłania do Flaska:", err);
+                        statusEl.innerText = "Status: Błąd wysyłania danych do serwera.";
+                    }
+                });
+
+                ndef.addEventListener("readingerror", () => {
+                    statusEl.innerText = "Błąd: Nie udało się odczytać taga. Spróbuj ponownie.";
+                });
+
+            } catch (error) {
+                console.error("Błąd uruchamiania NFC:", error);
+                statusEl.innerText = `Błąd: ${error.message}`;
+            }
+        });
+    </script>
 </body>
 </html>
