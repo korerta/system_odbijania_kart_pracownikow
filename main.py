@@ -1,6 +1,7 @@
 """
 Serwer WWW
 """
+from logging import exception
 
 # region importy
 #biblioteki
@@ -35,50 +36,105 @@ def data_login(form) -> dict:
 def data_admin(form) -> dict:
     data_return = {}
 
+    # region wczytanie zawartości pliku json
+    try:
+        with open('employees.json', 'r') as f:
+            contents_file_json = json.load(f)
+            data_return['list_employees'] = contents_file_json['employees']
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        print(f'Plik json nie istnieje lub jest pusty/uszkodzony')
+        data_return['message'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+        return data_return
+    # endregion
+
     # region obsługa formularza dodawania pracownika
     if 'add_employee' in form:
         # region czy wszystkie elementy formularza istnieją
-        for element in ('add_employee', 'name_employee'):
+        for element in ('add_employee', 'name_employee', 'pesel_employee'):
             if not element in form:
                 print(f'Brakuje elementu w formularzu: {element}')
-                data_return['message'] = 'Wypełnij poprawnie cały formularz.'
-
+                data_return['message_add'] = 'Wypełnij poprawnie cały formularz.'
+                return data_return
         # endregion
 
         name_employee = form['name_employee']
+        pesel_employee = form['pesel_employee']
 
         # region długość imienia i nazwiska
         if not len(name_employee):
-            print('Długość nazwy pracownika jest za krótka')
-            data_return['message'] = 'Wprowadź Imię i Nazwisko pracownika'
+            print('Długość nazwy pracownika jest za krótka.')
+            data_return['message_add'] = 'Wprowadź Imię i Nazwisko pracownika.'
+            return data_return
 
         if len(name_employee) > 50:
-            print('Długość nazwy pracownika jest za długa')
-            data_return['message'] = 'Imię i Nazwisko pracownika jest za długie'
+            print('Długość nazwy pracownika jest za długa.')
+            data_return['message_add'] = 'Imię i Nazwisko pracownika jest za długie.'
+            return data_return
         # endregion
 
-        # region dodawanie pracownika
-        try:
-            with open('employees.json', 'r') as f:
-                contents_file_json = json.load(f)
-                contents_file_json['employees'].append(name_employee)
+        # region długość peselu i czy jest liczbą
+        if not len(pesel_employee) == 11:
+            print('Długość peselu pracownika jest nieprawidłowa.')
+            data_return['message_add'] = 'Długość peselu pracownika jest nieprawidłowa.'
+            return data_return
 
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f'Plik json nie istnieje lub jest pusty/uszkodzony')
-            data_return['message'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+        try:
+            pesel_employee = int(pesel_employee)
+
+        except:
+            print('Pesel nie jest liczbą całkowitą.')
+            data_return['message_add'] = 'Pesel nie jest liczbą całkowitą.'
+            return data_return
+        # endregion
+
+        # region aktualizowanie pliku json
+        contents_file_json['employees'][name_employee] = pesel_employee
 
         try:
             with open('employees.json', 'w') as f:
                 json.dump(contents_file_json, f, indent=4)  # indent=4 dla czytelniejszego formatowania
+                print('Pomyślnie dodano pracownika')
+                data_return['message_add'] = 'Pomyślnie dodano pracownika'
 
         except Exception as error:
             print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}')
-            data_return['message'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-
+            data_return['message_add'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+            return data_return
         # endregion
 
-        print('Pomyślnie dodano pracownika')
-        data_return['message'] = 'Pomyślnie dodano pracownika'
+    # endregion
+
+    # region formularz usuwania pracownika
+    if 'del_employee' in form:
+        # region czy wszystkie elementy formularza istnieją
+        for element in ('del_employee', 'employee'):
+            if not element in form:
+                print(f'Brakuje elementu w formularzu: {element}')
+                data_return['message_del'] = 'Wypełnij poprawnie cały formularz.'
+                return data_return
+        # endregion
+
+        try:
+            contents_file_json['employees'].pop(form['employee'])
+
+        except Exception as error:
+            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}')
+            data_return['message_del'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+            return data_return
+
+        # region aktualizowanie pliku json
+        try:
+            with open('employees.json', 'w') as f:
+                json.dump(contents_file_json, f, indent=4)  # indent=4 dla czytelniejszego formatowania
+                print('Pomyślnie usunięto pracownika')
+                data_return['message_add'] = 'Pomyślnie usunięto pracownika'
+
+        except Exception as error:
+            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}')
+            data_return['message_del'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+            return data_return
+        # endregion
 
     # endregion
 
@@ -117,8 +173,6 @@ def login():
 # panel Administratora
 @app.route("/admin", methods=['GET', 'POST'])
 def admin():
-    return_data = {}
-
     # jeśli nie zalogowany to ma wrócić do strony głównej
     if not 'logged' in session:
         return redirect(url_for('home'))
@@ -129,7 +183,7 @@ def admin():
             session.clear()  # usuwanie sesji
             return redirect(url_for('login'))
 
-        return_data = data_admin(request.form)
+    return_data = data_admin(request.form)
 
     return render_template("admin.html", data=return_data)
 # endregion
