@@ -7,7 +7,7 @@
 <body>
     <form method="post"><button name='logout' type="submit">Wyloguj się</button></form>
 
-    <font color="maroon">{{ data['message_add'] }}</font>
+    <font color="maroon">{{ data['message_add'] }}</font><br>
     <font color="maroon">{{ data['message_add_id'] }}</font>
 
     <form method="post">
@@ -15,6 +15,56 @@
         <input type="text" placeholder="Imię i Nazwisko pracownika" name="name_employee">
         <button type="submit" name="add_employee">Dodaj pracownika</button>
     </form>
+
+    <br>
+
+    <h1>Zakoduj tag NFC</h1>
+    <select id="emp_id">
+        {% for employee in data['list_employees'] %}
+            <option value="{{ employee }}">{{ employee }}</option>
+        {% endfor %}
+    </select>
+    <button id="button_tag">Zapisz ID na karcie NFC </button>
+    <p id="status"></p>
+
+    <script>
+    document.getElementById("button_tag").addEventListener("click", async () => {
+        const status = document.getElementById("status");
+        const selectElem = document.getElementById("emp_id");
+
+        // Pobieramy wyłącznie wartość zaznaczonej opcji
+        const selectedKey = selectElem.value;
+
+        if (!selectedKey) {
+            status.innerText = "Nie wybrano żadnego klucza!";
+            status.style.color = "red";
+            return;
+        }
+
+        if (!("NDEFReader" in window)) {
+            status.innerText = "Brak obsługi Web NFC w tej przeglądarce.";
+            status.style.color = "red";
+            return;
+        }
+
+        try {
+            status.innerText = "Przyłóż kartę do telefonu...";
+            status.style.color = "orange";
+
+            const ndef = new NDEFReader();
+            // Zapis tylko wybranego klucza
+            await ndef.write({
+                records: [{ recordType: "text", data: selectedKey }]
+            }, { overwrite: true });
+
+            status.innerText = "Sukces! Zapisano klucz: " + selectedKey;
+            status.style.color = "green";
+        } catch (error) {
+            status.innerText = "Błąd zapisu: " + error.message;
+            status.style.color = "red";
+        }
+    });
+    </script>
 
     <font color="maroon">{{ data['message_del'] }}</font>
 

@@ -1,18 +1,18 @@
 """
 Serwer WWW
 """
-from logging import exception
 
 # region importy
 #biblioteki
-from flask import Flask, render_template, session, redirect, url_for, request
+from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 import json
+from uuid import uuid4
 
 #inne pliki
 from config import ip, port, debug, secret_key, admin_password
 # endregion
 
-def data_home(form) -> dict:
+def data_home() -> dict:
     data_return = {}
     return data_return
 
@@ -51,7 +51,7 @@ def data_admin(form) -> dict:
     # region obsługa formularza dodawania pracownika
     if 'add_employee' in form:
         # region czy wszystkie elementy formularza istnieją
-        for element in ('add_employee', 'name_employee', 'pesel_employee'):
+        for element in ('add_employee', 'name_employee'):
             if not element in form:
                 print(f'Brakuje elementu w formularzu: {element}')
                 data_return['message_add'] = 'Wypełnij poprawnie cały formularz.'
@@ -59,7 +59,8 @@ def data_admin(form) -> dict:
         # endregion
 
         name_employee = form['name_employee']
-        pesel_employee = form['pesel_employee']
+
+        id_employee = str(uuid4())
 
         # region długość imienia i nazwiska
         if not len(name_employee):
@@ -73,29 +74,15 @@ def data_admin(form) -> dict:
             return data_return
         # endregion
 
-        # region długość peselu i czy jest liczbą
-        if not len(pesel_employee) == 11:
-            print('Długość peselu pracownika jest nieprawidłowa.')
-            data_return['message_add'] = 'Długość peselu pracownika jest nieprawidłowa.'
-            return data_return
-
-        try:
-            pesel_employee = int(pesel_employee)
-
-        except:
-            print('Pesel nie jest liczbą całkowitą.')
-            data_return['message_add'] = 'Pesel nie jest liczbą całkowitą.'
-            return data_return
-        # endregion
-
         # region aktualizowanie pliku json
-        contents_file_json['employees'][name_employee] = pesel_employee
+        contents_file_json['employees'][id_employee] = name_employee
 
         try:
             with open('employees.json', 'w') as f:
                 json.dump(contents_file_json, f, indent=4)  # indent=4 dla czytelniejszego formatowania
                 print('Pomyślnie dodano pracownika')
                 data_return['message_add'] = 'Pomyślnie dodano pracownika'
+                data_return['message_add_id'] = f'Identyfikator pracownika: {id_employee}'
 
         except Exception as error:
             print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}')
@@ -146,6 +133,25 @@ app.config['SECRET_KEY'] = secret_key
 # endregion
 
 # region trasy
+@app.route('/api/nfc', methods=['POST'])
+def handle_nfc():
+    # Pobranie danych JSON przesłanych z przeglądarki
+    data = request.get_json()
+
+    # region czy otrzymano jakiekolwiek dane
+    if not data:
+        return jsonify({"status": "error", "message": "Brak danych"}), 400
+    # endregion
+
+    # Odpowiedź zwracana do przeglądarki
+    return jsonify({
+        "status": "success",
+    }), 200
+
+    #region zapis czasu w pliku json
+
+    # endregion
+
 # Strona główna
 @app.route("/", methods=['GET', 'POST'])
 def home():
