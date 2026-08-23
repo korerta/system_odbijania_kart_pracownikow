@@ -14,7 +14,6 @@
     <script>
         const scanBtn = document.getElementById('scanBtn');
         const statusEl = document.getElementById('status');
-        const outputEl = document.getElementById('output');
 
         scanBtn.addEventListener('click', async () => {
             // 1. Sprawdzenie, czy przeglądarka wspiera Web NFC
@@ -59,9 +58,6 @@
                         records: recordsData
                     };
 
-                    outputEl.innerHTML = `<strong>UID taga:</strong> ${serialNumber}<br>` +
-                                         `<strong>Odczytane rekordy:</strong> ${JSON.stringify(recordsData)}`;
-
                     // 4. Wysłanie danych do Flaska na localhost
                     try {
                         const response = await fetch('/api/nfc', {
@@ -74,7 +70,7 @@
 
                         const result = await response.json();
                         console.log("Odpowiedź z Flaska:", result);
-                        statusEl.innerText = "Status: Dane zapisane na serwerze pomyślnie!";
+                        statusEl.innerText = "Status: " + result.message;
                     } catch (err) {
                         console.error("Błąd podczas wysyłania do Flaska:", err);
                         statusEl.innerText = "Status: Błąd wysyłania danych do serwera.";

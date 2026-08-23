@@ -7,11 +7,10 @@
 <body>
     <form method="post"><button name='logout' type="submit">Wyloguj się</button></form>
 
+    <h1>Dodaj nowego pracownika</h1>
     <font color="maroon">{{ data['message_add'] }}</font><br>
-    <font color="maroon">{{ data['message_add_id'] }}</font>
-
+    <font color="maroon">{{ data['message_add_id'] }}</font><br>
     <form method="post">
-        <h1>Dodaj nowego pracownika</h1>
         <input type="text" placeholder="Imię i Nazwisko pracownika" name="name_employee">
         <button type="submit" name="add_employee">Dodaj pracownika</button>
     </form>
@@ -19,13 +18,13 @@
     <br>
 
     <h1>Zakoduj tag NFC</h1>
+    <p id="status"></p>
     <select id="emp_id">
-        {% for employee in data['list_employees'] %}
+        {% for employee in data['list_employees']['list_employees'] %}
             <option value="{{ employee }}">{{ employee }}</option>
         {% endfor %}
     </select>
     <button id="button_tag">Zapisz ID na karcie NFC </button>
-    <p id="status"></p>
 
     <script>
     document.getElementById("button_tag").addEventListener("click", async () => {
@@ -37,13 +36,13 @@
 
         if (!selectedKey) {
             status.innerText = "Nie wybrano żadnego klucza!";
-            status.style.color = "red";
+            status.style.color = "maroon";
             return;
         }
 
         if (!("NDEFReader" in window)) {
             status.innerText = "Brak obsługi Web NFC w tej przeglądarce.";
-            status.style.color = "red";
+            status.style.color = "maroon";
             return;
         }
 
@@ -61,17 +60,16 @@
             status.style.color = "green";
         } catch (error) {
             status.innerText = "Błąd zapisu: " + error.message;
-            status.style.color = "red";
+            status.style.color = "maroon";
         }
     });
     </script>
 
+    <h1>Usuń pracownika</h1>
     <font color="maroon">{{ data['message_del'] }}</font>
-
     <form method="post">
-        <h1>Usuń pracownika</h1>
         <select name="employee">
-            {% for employee in data['list_employees'] %}
+            {% for employee in data['list_employees']['list_employees'] %}
                 <option value="{{ employee }}">{{ employee }}</option>
             {% endfor %}
         </select>
