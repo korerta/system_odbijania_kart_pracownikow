@@ -175,24 +175,6 @@ app.config['SECRET_KEY'] = secret_key
 # region Trasy
 @app.route('/api/nfc', methods=['POST'])
 def handle_nfc():
-    def update_json(data_to_update) -> bool:
-        # region zapis do pliku json czasu odbicia karty
-        try:
-            json_str = json.dumps(data_to_update, indent=4)
-
-            with open('calendar.json', 'w') as f:
-                formatted_json = re.sub(r'\[\s*\n\s*(".*?",?)\s*\n\s*(".*?")\s*\n\s*\]',r'[\1 \2]',json_str)
-                f.write(formatted_json)
-                print('Pomyślnie zapisano czas odbicia karty.')
-                data_return = True
-
-        except Exception as error:
-            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
-            data_return = False
-        # endregion
-
-        return data_return
-
     # pobranie danych JSON przesłanych z przeglądarki
     data = request.get_json()
 
@@ -200,10 +182,6 @@ def handle_nfc():
     if not data:
         return jsonify({"status": "error", "message": "Brak danych"}), 400
     # endregion
-
-    # wczytanie zawartości pliku json
-    contents_file_json_employees = return_employees_json()
-    contents_file_json_calendar = return_calendar_json()
 
     # region walidacja operacji czy pracownik wchodzi czy wychodzi z pracy
     type_operation = data['type_operation']
@@ -224,7 +202,7 @@ def handle_nfc():
     # endregion
 
     # region czy pracownik istnieje z podanym identyfikatorem
-    if not id_employee in contents_file_json_employees['list_employees']:
+    if not database.check_exist_employee(id_employee)['result'][0]:
         print('Nie znaleziono pracownika z podanym identyfikatorem.')
         return jsonify({"status": "error", "message": "Nie znaleziono pracownika z podanym identyfikatorem."}), 400
     # endregion
@@ -236,39 +214,13 @@ def handle_nfc():
     curr_date = now.strftime("%Y-%m-%d")
     # endregion
 
-    # region czy klucz pracownika jest już w kalendarzu jeśli nie to go utworzyć.
-    if not id_employee in contents_file_json_calendar['calendar']:
-        contents_file_json_calendar['calendar'].setdefault(id_employee, {})  # utworzenie klucza pracownika w kalendarzu jeśli nie istnieje
-        if not update_json(contents_file_json_calendar):
-            return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
-
-        print('Pomyślnie utworzono pracownika w kalendarzu')
-        return jsonify({"status": "success", "message": "Pomyślnie zarejestrowano pracownika."}), 200
-    # endregion
-
     # region wrzucenie do kalendarza odbicie karty
-    if type_operation == 'out':
-        if curr_date not in contents_file_json_calendar['calendar'][id_employee]:
-            if yesterday_date in contents_file_json_calendar['calendar'][id_employee]:
-                update_json(contents_file_json_calendar['calendar'][id_employee][yesterday_date].append(['out', curr_time]))
-                if not update_json(contents_file_json_calendar):
-                    return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
-            else:
-                update_json(contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append(['out', curr_time]))
-                if not update_json(contents_file_json_calendar):
-                    return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
-        else:
-            update_json(contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append(['out', curr_time]))
-            if not update_json(contents_file_json_calendar):
-                return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
+    if database.add_new_row_calendar(id_employee, type_operation, curr_time)['status']:
+        return jsonify({"status": "success", "message": "Pomyślnie zarejestrowano czas odbicia karty."}), 200
     else:
-        contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append([type_operation, curr_time])
-        if not update_json(contents_file_json_calendar):
-            return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
-    # endregion
+        return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
 
-    # Odpowiedź zwracana do przeglądarki
-    return jsonify({"status": "success", "message": "Pomyślnie zarejestrowano czas odbicia karty."}), 200
+    # endregion
 
 # Strona główna
 @app.route("/", methods=['GET', 'POST'])
