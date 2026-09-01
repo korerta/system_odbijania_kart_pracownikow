@@ -20,8 +20,8 @@
     <h1>Zakoduj tag NFC</h1>
     <p id="status"></p>
     <select id="emp_id">
-        {% for employee in data['list_employees']['list_employees'] %}
-            <option value="{{ employee }}">{{ employee }}</option>
+        {% for employee in data['list_employees']['result'] %}
+            <option value="{{ employee[0] }}">{{ employee[1] }}</option>
         {% endfor %}
     </select>
     <button id="button_tag">Zapisz ID na karcie NFC </button>
@@ -69,8 +69,8 @@
     <font color="maroon">{{ data['message_del'] }}</font>
     <form method="post">
         <select name="employee">
-            {% for employee in data['list_employees']['list_employees'] %}
-                <option value="{{ employee }}">{{ employee }}</option>
+            {% for employee in data['list_employees']['result'] %}
+                <option value="{{ employee[0] }}">{{ employee[1] }}</option>
             {% endfor %}
         </select>
         <button type="submit" name="del_employee">Usuń pracownika</button>

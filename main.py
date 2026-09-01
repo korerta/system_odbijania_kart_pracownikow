@@ -9,25 +9,13 @@ import json, re
 from uuid import uuid4
 from datetime import datetime, timedelta
 
-# Inne pliki
+# Moje pliki
 from config import ip, port, debug, secret_key, admin_password, raport_password
+import database
 # endregion
 
-def return_employees_json():
-    data_return = {}
-
-    # region wczytanie zawartości pliku json
-    try:
-        with open('employees.json', 'r') as f:
-            contents_file_json = json.load(f)
-            data_return['list_employees'] = contents_file_json['list_employees']
-
-    except (FileNotFoundError, json.JSONDecodeError):
-        print(f'Plik json nie istnieje lub jest pusty/uszkodzony')
-        data_return['message'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-
-    return data_return
-    # endregion
+def return_employees() -> dict:
+    return database.result_get_list_employees() #Zapytanie do bazy danych
 
 def return_calendar_json():
     data_return = {}
@@ -67,11 +55,15 @@ def data_login(form) -> dict:
     return data_return
 
 def data_admin(form) -> dict:
-    data_return = {}
+    data_return = {
+        'list_employees': return_employees() # Wczytanie listy pracowników
+    }
 
-    # wczytanie zawartości pliku json
-    contents_file_json = return_employees_json()
-    data_return['list_employees'] = contents_file_json
+    # region Jakby się nie udało zdobyć danych z bazy danych
+    if not data_return['list_employees']['status']:
+        data_return['message_del'] = data_return['message_add'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
+        return data_return
+    # endregion
 
     # region obsługa formularza dodawania pracownika
     if 'add_employee' in form:
@@ -99,20 +91,16 @@ def data_admin(form) -> dict:
             return data_return
         # endregion
 
-        # region aktualizowanie pliku json
-        contents_file_json['list_employees'][id_employee] = name_employee
+        # region dodawanie pracownika do bazy danych
+        if database.add_new_employee(id_employee, name_employee)['status']:
+            data_return['message_add'] = 'Pomyślnie dodano pracownika.'
+            data_return['message_add_id'] = f'Identyfikator pracownika: {id_employee}.'
 
-        try:
-            with open('employees.json', 'w') as f:
-                json.dump(contents_file_json, f, indent=4)  # indent=4 dla czytelniejszego formatowania
-                print('Pomyślnie dodano pracownika')
-                data_return['message_add'] = 'Pomyślnie dodano pracownika.'
-                data_return['message_add_id'] = f'Identyfikator pracownika: {id_employee}.'
-
-        except Exception as error:
-            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
+        else:
+            print(f'Wystąpił nieoczekiwany błąd, podczas dodawania pracownika.')
             data_return['message_add'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-            return data_return
+
+        return data_return
         # endregion
 
     # endregion
@@ -127,25 +115,15 @@ def data_admin(form) -> dict:
                 return data_return
         # endregion
 
-        # region aktualizowanie pliku json
-        try:
-            contents_file_json['list_employees'].pop(form['employee'])
+        # region aktualizowanie bazy danych
+        if database.del_employee(form['employee'])['status']:
+            print('Pomyślnie usunięto pracownika.')
+            data_return['message_del'] = 'Pomyślnie usunięto pracownika.'
 
-        except Exception as error:
-            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
+        else:
+            print('Wystąpił nieoczekiwany błąd, podczas usuwania pracownika z bazy danych.')
             data_return['message_del'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-            return data_return
 
-        try:
-            with open('employees.json', 'w') as f:
-                json.dump(contents_file_json, f, indent=4)  # indent=4 dla czytelniejszego formatowania
-                print('Pomyślnie usunięto pracownika.')
-                data_return['message_del'] = 'Pomyślnie usunięto pracownika.'
-
-        except Exception as error:
-            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
-            data_return['message_del'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-            return data_return
         # endregion
 
     # endregion
