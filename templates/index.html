@@ -8,12 +8,21 @@
     <a href="{{ url_for('login') }}">Panel Administratora</a>
 
     <button id="scanBtn">Rozpocznij skanowanie NFC</button>
+    <select id="operation">
+        <option value="choose">Wybierz opcję</option>
+        <option value="in">Rozpoczęcie pracy</option>
+        <option value="out_temp">Wyjście z pracy</option>
+        <option value="in_back">Powrót do pracy</option>
+        <option value="out">Zakończenie pracy</option>
+    </select>
     <p id="status">Status: Oczekiwanie na uruchomienie...</p>
     <div id="output"></div>
 
     <script>
         const scanBtn = document.getElementById('scanBtn');
         const statusEl = document.getElementById('status');
+        const operation = document.getElementById('operation');
+        let nfcController = null;
 
         scanBtn.addEventListener('click', async () => {
             // 1. Sprawdzenie, czy przeglądarka wspiera Web NFC
@@ -23,15 +32,23 @@
             }
 
             try {
-                // 2. Inicjalizacja czytnika i rozpoczęcie nasłuchiwania
+                // 2. Inicjalizacja kontrolera do zatrzymania skanowania po 1 odczycie
+                nfcController = new AbortController();
+
                 const ndef = new NDEFReader();
-                await ndef.scan();
+                await ndef.scan({ signal: nfcController.signal });
 
                 statusEl.innerText = "Status: Skaner aktywny. Przyłóż tag NFC do pleców telefonu...";
                 scanBtn.disabled = true;
 
                 // 3. Obsługa zdarzenia wykrycia i odczytania taga
                 ndef.addEventListener("reading", async ({ message, serialNumber }) => {
+                    // ZATRZYMANIE SKANERA: wyłączamy nasłuchiwanie NFC po wykryciu karty
+                    if (nfcController) {
+                        nfcController.abort();
+                        nfcController = null;
+                    }
+
                     statusEl.innerText = "Status: Odczytano tag! Wysyłanie do serwera...";
 
                     // Dekodowanie zawartości tekstowej z rekordów NDEF
@@ -55,10 +72,11 @@
                     // Przygotowanie paczki danych do wysłania
                     const payload = {
                         serialNumber: serialNumber,
-                        records: recordsData
+                        records: recordsData,
+                        type_operation: operation.value
                     };
 
-                    // 4. Wysłanie danych do Flaska na localhost
+                    // 4. Wysłanie danych do Flaska
                     try {
                         const response = await fetch('/api/nfc', {
                             method: 'POST',
@@ -74,16 +92,24 @@
                     } catch (err) {
                         console.error("Błąd podczas wysyłania do Flaska:", err);
                         statusEl.innerText = "Status: Błąd wysyłania danych do serwera.";
+                    } finally {
+                        // ODBLOKOWANIE PRZYCISKU: użytkownik musi kliknąć go ponownie
+                        scanBtn.disabled = false;
                     }
-                });
+                }, { once: true }); // Flaga { once: true } gwarantuje jednorazowe wywołanie eventu
 
                 ndef.addEventListener("readingerror", () => {
                     statusEl.innerText = "Błąd: Nie udało się odczytać taga. Spróbuj ponownie.";
+                    scanBtn.disabled = false;
                 });
 
             } catch (error) {
-                console.error("Błąd uruchamiania NFC:", error);
-                statusEl.innerText = `Błąd: ${error.message}`;
+                // Ignorujemy standardowy sygnał przerwania AbortError
+                if (error.name !== 'AbortError') {
+                    console.error("Błąd uruchamiania NFC:", error);
+                    statusEl.innerText = `Błąd: ${error.message}`;
+                }
+                scanBtn.disabled = false;
             }
         });
     </script>

@@ -3,13 +3,14 @@ Serwer WWW
 """
 
 # region importy
-#biblioteki
+# Biblioteki
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
-import json, time
+import json, re
 from uuid import uuid4
+from datetime import datetime, timedelta
 
-#inne pliki
-from config import ip, port, debug, secret_key, admin_password
+# Inne pliki
+from config import ip, port, debug, secret_key, admin_password, raport_password
 # endregion
 
 def return_employees_json():
@@ -151,14 +152,69 @@ def data_admin(form) -> dict:
 
     return data_return
 
-# region konfiguracja flask
+def data_raporty(form) -> dict:
+    data_return = {'show_data': False, 'data': {}}
+
+    # region obsługa formularza odblokowywania raportów
+    if 'unlock_data' in form:
+
+        # region czy wszystkie elementy formularza istnieją
+        if not 'password' in form:
+            print('Brakuje elementu formularzu: password.')
+            data_return['message_unlock_data'] = 'Wypełnij poprawnie cały formularz.'
+            return data_return
+        # endregion
+
+        # region czy hasło poprawne
+        if raport_password != form['password']:
+            print('Hasło niepoprawne')
+            data_return['message_unlock_data'] = 'Hasło jest nieprawidłowe.'
+            return data_return
+        # endregion
+
+        # wczytanie zawartości pliku json
+        contents_file_json_employees = return_employees_json()
+        contents_file_json_calendar = return_calendar_json()
+
+        # region dodawanie pracowników do słownika
+        for key, value in contents_file_json_employees['list_employees'].items(): # iterowanie po pracownikach
+            if key in contents_file_json_calendar['calendar']: # zabezpieczenie jeśli danego klucza by nie byłó w kalendarzu
+                data_calendar = contents_file_json_calendar['calendar'][key] # odczytanie dat z kalendarza danego pracownika
+                data_return['data'][key] = [data_calendar]
+                pass
+        # endregion
+
+        data_return['show_data'] = True
+    # endregion
+
+    return data_return
+
+# region Konfiguracja flask
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secret_key
 # endregion
 
-# region trasy
+# region Trasy
 @app.route('/api/nfc', methods=['POST'])
 def handle_nfc():
+    def update_json(data_to_update) -> bool:
+        # region zapis do pliku json czasu odbicia karty
+        try:
+            json_str = json.dumps(data_to_update, indent=4)
+
+            with open('calendar.json', 'w') as f:
+                formatted_json = re.sub(r'\[\s*\n\s*(".*?",?)\s*\n\s*(".*?")\s*\n\s*\]',r'[\1 \2]',json_str)
+                f.write(formatted_json)
+                print('Pomyślnie zapisano czas odbicia karty.')
+                data_return = True
+
+        except Exception as error:
+            print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
+            data_return = False
+        # endregion
+
+        return data_return
+
     # pobranie danych JSON przesłanych z przeglądarki
     data = request.get_json()
 
@@ -171,8 +227,14 @@ def handle_nfc():
     contents_file_json_employees = return_employees_json()
     contents_file_json_calendar = return_calendar_json()
 
-    # aktualny czas
-    curr_time_unix = time.time()
+    # region walidacja operacji czy pracownik wchodzi czy wychodzi z pracy
+    type_operation = data['type_operation']
+
+    if type_operation not in 'in, out, out_temp, in_back':
+        print('Nie wybrano z listy wyboru odpowiedniej opcji.')
+        return jsonify({"status": "error", "message": "Wybierz czy wchodzisz czy wychodzisz z zakładu pracy."}), 400
+
+    # endregion
 
     # region odczytanie identyfikatora pracownika z tagu NFC
     try:
@@ -189,18 +251,42 @@ def handle_nfc():
         return jsonify({"status": "error", "message": "Nie znaleziono pracownika z podanym identyfikatorem."}), 400
     # endregion
 
-    # region zapis do pliku json czasu odbicia karty
-    contents_file_json_calendar['calendar'].setdefault(id_employee, []).append(curr_time_unix)
+    # region pobieranie daty i czasu
+    now = datetime.now()
+    yesterday_date = (now - timedelta(days=1)).date()
+    curr_time = now.strftime("%H:%M:%S")
+    curr_date = now.strftime("%Y-%m-%d")
+    # endregion
 
-    try:
-        with open('calendar.json', 'w') as f:
-            json.dump(contents_file_json_calendar, f, indent=4)  # indent=4 dla czytelniejszego formatowania
-            print('Pomyślnie zapisano czas odbicia karty.')
+    # region czy klucz pracownika jest już w kalendarzu jeśli nie to go utworzyć.
+    if not id_employee in contents_file_json_calendar['calendar']:
+        contents_file_json_calendar['calendar'].setdefault(id_employee, {})  # utworzenie klucza pracownika w kalendarzu jeśli nie istnieje
+        if not update_json(contents_file_json_calendar):
+            return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
 
-    except Exception as error:
-        print(f'Wystąpił nieoczekiwany błąd, podczas aktualizowania pliku json, błąd: {error}.')
-        return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
+        print('Pomyślnie utworzono pracownika w kalendarzu')
+        return jsonify({"status": "success", "message": "Pomyślnie zarejestrowano pracownika."}), 200
+    # endregion
 
+    # region wrzucenie do kalendarza odbicie karty
+    if type_operation == 'out':
+        if curr_date not in contents_file_json_calendar['calendar'][id_employee]:
+            if yesterday_date in contents_file_json_calendar['calendar'][id_employee]:
+                update_json(contents_file_json_calendar['calendar'][id_employee][yesterday_date].append(['out', curr_time]))
+                if not update_json(contents_file_json_calendar):
+                    return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
+            else:
+                update_json(contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append(['out', curr_time]))
+                if not update_json(contents_file_json_calendar):
+                    return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
+        else:
+            update_json(contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append(['out', curr_time]))
+            if not update_json(contents_file_json_calendar):
+                return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
+    else:
+        contents_file_json_calendar['calendar'][id_employee].setdefault(curr_date, []).append([type_operation, curr_time])
+        if not update_json(contents_file_json_calendar):
+            return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
     # endregion
 
     # Odpowiedź zwracana do przeglądarki
@@ -215,7 +301,7 @@ def home():
 
     return render_template("index.html")
 
-# strona logowania do panelu Administratora
+# Strona logowania do panelu Administratora
 @app.route("/login", methods=['GET', 'POST'])
 #@limiter.limit("10 per minute")
 def login():
@@ -230,7 +316,7 @@ def login():
 
     return render_template("login.html", data=return_data)
 
-# panel Administratora
+# Panel Administratora
 @app.route("/admin", methods=['GET', 'POST'])
 def admin():
     # jeśli nie zalogowany to ma wrócić do strony głównej
@@ -246,6 +332,17 @@ def admin():
     return_data = data_admin(request.form)
 
     return render_template("admin.html", data=return_data)
+
+# Raporty
+@app.route("/raporty", methods=['GET', 'POST'])
+def raporty():
+    return_data = data_raporty({})
+
+    # przesłanie formularza
+    if request.form:
+        return_data = data_raporty(request.form)
+
+    return render_template("raporty.html", data=return_data)
 # endregion
 
 if __name__ == "__main__":
