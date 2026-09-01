@@ -53,6 +53,7 @@ def conn_cursor() -> dict:
 def result_get_list_employees() -> dict:
     """
     Funkcja zwracająca listę pracowników
+    dict{result =str zawiera rezultat zapytania, status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :return: Zwraca rezultat zapytania z bazy danych
     """
 
@@ -88,6 +89,7 @@ def result_get_list_employees() -> dict:
 def add_new_employee(id: str, name_surname: str) -> dict:
     """
     Funkcja dodająca pracownika
+    dict{status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :param id: Identyfikator pracownika
     :param name_surname: Imię i Nazwisko pracownika
     :return: Zwraca rezultat zapytania z bazy danych
@@ -126,6 +128,7 @@ def add_new_employee(id: str, name_surname: str) -> dict:
 def del_employee(id: str) -> dict:
     """
     Funkcja usuwająca pracownika
+    dict{status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :param id: Identyfikator pracownika
     :return: Zwraca rezultat zapytania z bazy danych
     """
@@ -163,6 +166,7 @@ def del_employee(id: str) -> dict:
 def check_exist_employee(id: str) -> dict:
     """
     Funkcja zwracająca czy jest pracownik o podanym ID
+    dict{result =str zawiera rezultat zapytania, status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :return: Zwraca rezultat zapytania z bazy danych
     """
 
@@ -198,6 +202,7 @@ def check_exist_employee(id: str) -> dict:
 def add_new_row_calendar(id: str, type: str, date: str) -> dict:
     """
     Funkcja dodająca nowy wpis do kalendarza
+    dict{status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :param id: Identyfikator pracownika
     :param type: Typ operacji (czy wejście do firmy/wyjście z firmy itp
     :param date: Czas odbicia karty
@@ -214,7 +219,7 @@ def add_new_row_calendar(id: str, type: str, date: str) -> dict:
         try:
             cursor = res_conn['cursor']
 
-            cursor.execute("INSERT INTO calendar (id, type, date) VALUES (?, ?, ?)", (id, type, date))
+            cursor.execute("INSERT INTO calendar (id_employee, type, date) VALUES (?, ?, ?)", (id, type, date))
             conn.commit()
             data_return['status'] = True
 
@@ -231,6 +236,43 @@ def add_new_row_calendar(id: str, type: str, date: str) -> dict:
         print('Błąd podczas zwracania rezultatu w add_new_row_calendar')
         data_return['status'] = False
         data_return['error'] = 'Błąd podczas zwracania rezultatu w add_new_row_calendar'
+
+    return data_return
+
+def get_calendar() -> dict:
+    """
+    Funkcja pobierająca cały kalendarz
+    dict{result =str zawiera rezultat zapytania, status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
+    :return: Zwraca rezultat zapytania z bazy danych
+    """
+
+    res_conn = conn_cursor() # Połączenie z bazą danych
+    data_return = {}
+
+    # Jeśli nie zwróciło żadnego błędu
+    if 'status' in res_conn:
+        conn = res_conn['conn']
+
+        try:
+            cursor = res_conn['cursor']
+
+            cursor.execute("SELECT * FROM calendar")
+            data_return['result'] = cursor.fetchall()
+            data_return['status'] = True
+
+        except Exception as error:
+            print('Błąd podczas zwracania rezultatu w get_calendar, błąd:', error)
+            data_return['status'] = False
+            data_return['error'] = f'Błąd podczas zwracania rezultatu w get_calendar, błąd: {error}'
+
+        finally:
+            close_connection(conn)
+
+    # Jeśli zwróciło błąd
+    else:
+        print('Błąd podczas zwracania rezultatu w get_calendar')
+        data_return['status'] = False
+        data_return['error'] = 'Błąd podczas zwracania rezultatu w get_calendar'
 
     return data_return
 

@@ -14,18 +14,5 @@
         </form>
     {% endif %}
 
-    dsakldhnasjkdnsakjdnas
-    <table border="1">{% if data['show_data'] %}
-        {% for key, values in data['data'].items() %}
-            <tr><td>{{ key }}</td></tr>
-            {% for value in values %}
-                {% for x in value %}
-                    <tr>
-                        <td>{{ x }}</td>
-                    </tr>
-                {% endfor %}
-            {% endfor %}
-        {% endfor %}
-    {% endif %}</table>
 </body>
 </html>

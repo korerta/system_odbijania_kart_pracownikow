@@ -5,9 +5,8 @@ Serwer WWW
 # region importy
 # Biblioteki
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
-import json, re
 from uuid import uuid4
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Moje pliki
 from config import ip, port, debug, secret_key, admin_password, raport_password
@@ -16,22 +15,6 @@ import database
 
 def return_employees() -> dict:
     return database.result_get_list_employees() #Zapytanie do bazy danych
-
-def return_calendar_json():
-    data_return = {}
-
-    # region wczytanie zawartości pliku json
-    try:
-        with open('calendar.json', 'r') as f:
-            contents_file_json = json.load(f)
-            data_return['calendar'] = contents_file_json['calendar']
-
-    except (FileNotFoundError, json.JSONDecodeError):
-        print(f'Plik json nie istnieje lub jest pusty/uszkodzony')
-        data_return['message'] = 'Nieoczekiwany błąd. Skontaktuj się z Administratorem.'
-
-    return data_return
-    # endregion
 
 def data_home() -> dict:
     data_return = {}
@@ -148,21 +131,26 @@ def data_raporty(form) -> dict:
             print('Hasło niepoprawne')
             data_return['message_unlock_data'] = 'Hasło jest nieprawidłowe.'
             return data_return
+        else:
+            data_return['show_data'] = True
         # endregion
 
-        # wczytanie zawartości pliku json
-        contents_file_json_employees = return_employees_json()
-        contents_file_json_calendar = return_calendar_json()
+        # region pobranie listy pracowników
+        database_result = database.result_get_list_employees()
 
-        # region dodawanie pracowników do słownika
-        for key, value in contents_file_json_employees['list_employees'].items(): # iterowanie po pracownikach
-            if key in contents_file_json_calendar['calendar']: # zabezpieczenie jeśli danego klucza by nie byłó w kalendarzu
-                data_calendar = contents_file_json_calendar['calendar'][key] # odczytanie dat z kalendarza danego pracownika
-                data_return['data'][key] = [data_calendar]
-                pass
+        if database_result['status']: # jeśli udało się pobrać dane
+            # region dodawanie pracowników do słownika
+            for value in database_result['result']: # iterowanie po pracownikach
+                data_return['data'][value[0]] = {'name':value[1], 'calendar':[]}
+            # endregion
+
+            # region dodawanie wpisów z kalendarza do danego pracownika
+            database_result = database.get_calendar()
+            for row in database_result['result']:
+                data_return['data'][row[1]]['calendar'].append(row[2:])
+            # endregion
         # endregion
 
-        data_return['show_data'] = True
     # endregion
 
     return data_return
@@ -209,13 +197,11 @@ def handle_nfc():
 
     # region pobieranie daty i czasu
     now = datetime.now()
-    yesterday_date = (now - timedelta(days=1)).date()
-    curr_time = now.strftime("%H:%M:%S")
-    curr_date = now.strftime("%Y-%m-%d")
+    curr_date_time = now.strftime("%Y-%m-%d %H:%M:%S")
     # endregion
 
     # region wrzucenie do kalendarza odbicie karty
-    if database.add_new_row_calendar(id_employee, type_operation, curr_time)['status']:
+    if database.add_new_row_calendar(id_employee, type_operation, curr_date_time)['status']:
         return jsonify({"status": "success", "message": "Pomyślnie zarejestrowano czas odbicia karty."}), 200
     else:
         return jsonify({"status": "error", "message": "Nieoczekiwany błąd. Skontaktuj się z Administratorem."}), 400
