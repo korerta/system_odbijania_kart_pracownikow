@@ -1,0 +1,10 @@
+system_odbijania_kart_pracownikow/
+├── .venv/
+├── templates/
+├── .env
+├── .env.example
+├── .gitignore   <--- TUTAJ
+├── config.py
+├── database.db
+├── database.py
+└── main.py

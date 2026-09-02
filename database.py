@@ -258,9 +258,9 @@ def get_calendar(employee:int=None) -> dict:
             cursor = res_conn['cursor']
 
             if employee is None:
-                cursor.execute("SELECT * FROM calendar")
+                cursor.execute("SELECT * FROM calendar ORDER BY date DESC")
             else:
-                cursor.execute("SELECT * FROM calendar WHERE id_employee=?", (employee,))
+                cursor.execute("SELECT * FROM calendar WHERE id_employee=? ORDER BY date DESC", (employee,))
 
             data_return['result'] = cursor.fetchall()
             data_return['status'] = True
