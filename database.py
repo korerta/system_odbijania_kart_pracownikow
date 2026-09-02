@@ -45,8 +45,7 @@ def conn_cursor() -> dict:
         data_return['error'] = error
         data_return['status'] = False
 
-    finally:
-        return data_return
+    return data_return
 #endregion
 
 # region Zapytania
@@ -61,7 +60,7 @@ def result_get_list_employees() -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         try:
             cursor = res_conn['cursor']
 
@@ -99,7 +98,7 @@ def add_new_employee(id: str, name_surname: str) -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         conn = res_conn['conn']
 
         try:
@@ -137,7 +136,7 @@ def del_employee(id: str) -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         conn = res_conn['conn']
 
         try:
@@ -174,7 +173,7 @@ def check_exist_employee(id: str) -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         try:
             cursor = res_conn['cursor']
 
@@ -213,7 +212,7 @@ def add_new_row_calendar(id: str, type: str, date: str) -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         conn = res_conn['conn']
 
         try:
@@ -239,7 +238,7 @@ def add_new_row_calendar(id: str, type: str, date: str) -> dict:
 
     return data_return
 
-def get_calendar(employee:int=None) -> dict:
+def get_calendar(employee:str=None) -> dict:
     """
     Funkcja pobierająca cały kalendarz
     :param employee: Jakiego użytkownika pobrać wpisy (brak przekazania argumentu oznacza że wszystkie wpisy pobrać)
@@ -251,7 +250,7 @@ def get_calendar(employee:int=None) -> dict:
     data_return = {}
 
     # Jeśli nie zwróciło żadnego błędu
-    if 'status' in res_conn:
+    if res_conn.get('status'):
         conn = res_conn['conn']
 
         try:

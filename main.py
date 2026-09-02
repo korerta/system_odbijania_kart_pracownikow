@@ -152,6 +152,16 @@ def data_raporty(form) -> dict:
             data_return['selected_employee'] = 'Wszyscy pracownicy'
         #endregion
 
+        # region tłumaczenie nazw technicznych na czytelne
+        dict_type = {
+            'in': 'Rozpoczęcie pracy',
+            'out_temp': 'Opuszczenie pracy',
+            'in_back': 'Powrót do pracy',
+            'out': 'Koniec pracy'
+        }
+        dict_employees = dict(database_result_employees['result'])
+        # endregion
+
         # region pobranie kalendarza
         if database_result_employees['status'] and database_result_calendar['status']: # jeśli udało się pobrać dane
             # region dodawanie wpisów z kalendarza do danego pracownika
@@ -159,19 +169,9 @@ def data_raporty(form) -> dict:
                 data_to_append = {}
                 id, id_employee, type, date_time = row
 
-                # region tłumaczenie nazw technicznych na czytelne
-                dict_type = {
-                    'in':'Rozpoczęcie pracy',
-                    'out_temp':'Opuszczenie pracy',
-                    'in_back':'Powrót do pracy',
-                    'out':'Koniec pracy'
-                }
-                dict_employees = dict(database_result_employees['result'])
-                # endregion
-
                 data_to_append['type'] = dict_type[type]
                 data_to_append['date_time'] = date_time
-                data_to_append['employee'] = dict_employees[id_employee]
+                data_to_append['employee'] = dict_employees.get(id_employee, "Pracownik usunięty")
                 data_return['data'].append(data_to_append)
             # endregion
         # endregion
@@ -196,9 +196,9 @@ def handle_nfc():
     # endregion
 
     # region walidacja operacji czy pracownik wchodzi czy wychodzi z pracy
-    type_operation = data['type_operation']
+    type_operation = data.get('type_operation')
 
-    if type_operation not in 'in, out, out_temp, in_back':
+    if not type_operation or type_operation not in ('in', 'out', 'out_temp', 'in_back'):
         print('Nie wybrano z listy wyboru odpowiedniej opcji.')
         return jsonify({"status": "error", "message": "Wybierz czy wchodzisz czy wychodzisz z zakładu pracy."}), 400
 

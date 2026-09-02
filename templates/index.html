@@ -17,7 +17,6 @@
         <option value="out">Zakończenie pracy</option>
     </select>
     <p id="status">Status: Oczekiwanie na uruchomienie...</p>
-    <div id="output"></div>
 
     <script>
         const scanBtn = document.getElementById('scanBtn');
@@ -26,14 +25,21 @@
         let nfcController = null;
 
         scanBtn.addEventListener('click', async () => {
-            // 1. Sprawdzenie, czy przeglądarka wspiera Web NFC
+
+            // Sprawdzenie, czy wybrano typ operacji
+            if (operation.value === "choose") {
+                statusEl.innerText = "Błąd: Najpierw wybierz rodzaj operacji (np. Rozpoczęcie pracy).";
+                return;
+            }
+
+            // Sprawdzenie, czy przeglądarka wspiera Web NFC
             if (!('NDEFReader' in window)) {
                 statusEl.innerText = "Błąd: Twoja przeglądarka nie obsługuje Web NFC (użyj Chrome na Androidzie).";
                 return;
             }
 
             try {
-                // 2. Inicjalizacja kontrolera do zatrzymania skanowania po 1 odczycie
+                // Inicjalizacja kontrolera do zatrzymania skanowania po 1 odczycie
                 nfcController = new AbortController();
 
                 const ndef = new NDEFReader();
@@ -42,9 +48,9 @@
                 statusEl.innerText = "Status: Skaner aktywny. Przyłóż tag NFC do pleców telefonu...";
                 scanBtn.disabled = true;
 
-                // 3. Obsługa zdarzenia wykrycia i odczytania taga
+                // Obsługa zdarzenia wykrycia i odczytania taga
                 ndef.addEventListener("reading", async ({ message, serialNumber }) => {
-                    // ZATRZYMANIE SKANERA: wyłączamy nasłuchiwanie NFC po wykryciu karty
+                    // Zatrzymanie skanera: wyłączamy nasłuchiwanie NFC po wykryciu karty
                     if (nfcController) {
                         nfcController.abort();
                         nfcController = null;
@@ -77,7 +83,7 @@
                         type_operation: operation.value
                     };
 
-                    // 4. Wysłanie danych do Flaska
+                    // Wysłanie danych do Flaska
                     try {
                         const response = await fetch('/api/nfc', {
                             method: 'POST',
@@ -94,7 +100,7 @@
                         console.error("Błąd podczas wysyłania do Flaska:", err);
                         statusEl.innerText = "Status: Błąd wysyłania danych do serwera.";
                     } finally {
-                        // ODBLOKOWANIE PRZYCISKU: użytkownik musi kliknąć go ponownie
+                        // Odblokowanie przycisku: użytkownik musi kliknąć go ponownie
                         scanBtn.disabled = false;
                     }
                 }, { once: true }); // Flaga { once: true } gwarantuje jednorazowe wywołanie eventu
