@@ -5,13 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    <a href="{{ url_for('home') }}">Wróć</a>
     <h1>Raporty</h1>
     {% if data['show_data'] == False %}
         <font color="maroon">{{ data['message_unlock_data'] }}</font><br>
         <form method="post">
+            <select name="select_employee">
+                <option value="all">Wszyscy pracownicy</option>
+                {% for employee in data['list_employees'] %}
+                    <option value="{{ employee[0] }}">{{ employee }}</option>
+                {% endfor %}
+            </select>
             <input type="password" name="password" placeholder="Wpisz hasło"/>
             <button type="submit" name="unlock_data">Odblokuj dane</button>
         </form>
+    {% else %}
+        <table border="1">
+            <tr><td>Wybrany pracownik: {{ data['selected_employee'] }}</td></tr>
+
+            <tr><td>Pracownik</td><td>Operacja</td><td>Data i Czas</td></tr>
+            {% for values in data['data'] %}
+            <tr><td>{{ values['employee'] }}</td><td> {{ values['type'] }}</td><td> {{ values['date_time'] }}</td></tr><tr>
+            {% endfor %}
+        </table>
     {% endif %}
 
 </body>

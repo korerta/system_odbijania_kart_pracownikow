@@ -239,9 +239,10 @@ def add_new_row_calendar(id: str, type: str, date: str) -> dict:
 
     return data_return
 
-def get_calendar() -> dict:
+def get_calendar(employee:int=None) -> dict:
     """
     Funkcja pobierająca cały kalendarz
+    :param employee: Jakiego użytkownika pobrać wpisy (brak przekazania argumentu oznacza że wszystkie wpisy pobrać)
     dict{result =str zawiera rezultat zapytania, status=bool czy się udało wykonać zapytanie, error=dokładny błąd}
     :return: Zwraca rezultat zapytania z bazy danych
     """
@@ -256,7 +257,11 @@ def get_calendar() -> dict:
         try:
             cursor = res_conn['cursor']
 
-            cursor.execute("SELECT * FROM calendar")
+            if employee is None:
+                cursor.execute("SELECT * FROM calendar")
+            else:
+                cursor.execute("SELECT * FROM calendar WHERE id_employee=?", (employee,))
+
             data_return['result'] = cursor.fetchall()
             data_return['status'] = True
 

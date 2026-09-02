@@ -145,9 +145,24 @@ def data_raporty(form) -> dict:
             # endregion
 
             # region dodawanie wpisów z kalendarza do danego pracownika
-            database_result = database.get_calendar()
-            for row in database_result['result']:
-                data_return['data'][row[1]]['calendar'].append(row[2:])
+            for row in database_result_calendar['result']:
+                data_to_append = {}
+                id, id_employee, type, date_time = row
+
+                # region tłumaczenie nazw technicznych na czytelne
+                dict_type = {
+                    'in':'Rozpoczęcie pracy',
+                    'out_temp':'Opuszczenie pracy',
+                    'in_back':'Powrót do pracy',
+                    'out':'Koniec pracy'
+                }
+                dict_employees = dict(database_result_employees['result'])
+                # endregion
+
+                data_to_append['type'] = dict_type[type]
+                data_to_append['date_time'] = date_time
+                data_to_append['employee'] = dict_employees[id_employee]
+                data_return['data'].append(data_to_append)
             # endregion
         # endregion
 
