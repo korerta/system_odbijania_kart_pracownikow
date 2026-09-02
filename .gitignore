@@ -1,10 +1,9 @@
-system_odbijania_kart_pracownikow/
-├── .venv/
-├── templates/
-├── .env
-├── .env.example
-├── .gitignore   <--- TUTAJ
-├── config.py
-├── database.db
-├── database.py
-└── main.py
+.venv/
+__pycache__/
+.idea/
+.DS_Store
+.env
+Archiwum.zip
+*.db
+*.db-shm
+*.db-wal
