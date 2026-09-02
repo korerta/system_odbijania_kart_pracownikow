@@ -63,6 +63,7 @@ def data_admin(form) -> dict:
         id_employee = str(uuid4())
 
         # region długość imienia i nazwiska
+        name_employee = name_employee.strip()
         if not len(name_employee):
             print('Długość nazwy pracownika jest za krótka.')
             data_return['message_add'] = 'Wprowadź Imię i Nazwisko pracownika.'
@@ -114,16 +115,20 @@ def data_admin(form) -> dict:
     return data_return
 
 def data_raporty(form) -> dict:
-    data_return = {'show_data': False, 'data': {}}
+    data_return = {'show_data': False, 'data': []}
+
+    database_result_employees = database.result_get_list_employees()
+    data_return['list_employees'] = database_result_employees['result']
 
     # region obsługa formularza odblokowywania raportów
     if 'unlock_data' in form:
 
         # region czy wszystkie elementy formularza istnieją
-        if not 'password' in form:
-            print('Brakuje elementu formularzu: password.')
-            data_return['message_unlock_data'] = 'Wypełnij poprawnie cały formularz.'
-            return data_return
+        for key in ('password', 'select_employee'):
+            if not key in form:
+                print(f'Brakuje elementu formularzu: {key}.')
+                data_return['message_unlock_data'] = 'Wypełnij poprawnie cały formularz.'
+                return data_return
         # endregion
 
         # region czy hasło poprawne
@@ -135,15 +140,20 @@ def data_raporty(form) -> dict:
             data_return['show_data'] = True
         # endregion
 
-        # region pobranie listy pracowników
-        database_result = database.result_get_list_employees()
+        # region obsługa pola formularza select_employee
+        select_employee = form['select_employee']
 
-        if database_result['status']: # jeśli udało się pobrać dane
-            # region dodawanie pracowników do słownika
-            for value in database_result['result']: # iterowanie po pracownikach
-                data_return['data'][value[0]] = {'name':value[1], 'calendar':[]}
-            # endregion
+        if select_employee != 'all':
+            database_result_calendar = database.get_calendar(select_employee)
+            data_return['selected_employee'] = select_employee
 
+        else:
+            database_result_calendar = database.get_calendar()
+            data_return['selected_employee'] = 'Wszyscy pracownicy'
+        #endregion
+
+        # region pobranie kalendarza
+        if database_result_employees['status'] and database_result_calendar['status']: # jeśli udało się pobrać dane
             # region dodawanie wpisów z kalendarza do danego pracownika
             for row in database_result_calendar['result']:
                 data_to_append = {}
@@ -165,7 +175,6 @@ def data_raporty(form) -> dict:
                 data_return['data'].append(data_to_append)
             # endregion
         # endregion
-
     # endregion
 
     return data_return
